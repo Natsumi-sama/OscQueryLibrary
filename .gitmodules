@@ -1,0 +1,3 @@
+[submodule "CoreOSC-UTF8-ASYNC"]
+	path = CoreOSC-UTF8-ASYNC
+	url = https://github.com/LucHeart/CoreOSC-UTF8-ASYNC
