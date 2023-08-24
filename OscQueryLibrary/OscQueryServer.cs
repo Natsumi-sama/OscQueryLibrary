@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using MeaMod.DNS.Model;
@@ -9,7 +10,7 @@ namespace OscQueryLibrary;
 
 public class OscQueryServer
 {
-    private const int HttpPort = 8062; // TODO: remove when switching httpServer library for random port support
+    private readonly ushort _httpPort; // TODO: remove when switching httpServer library for proper random port support
     private readonly string _ipAddress;
     private readonly ushort _oscPort;
     private const string OscHttpServiceName = "_oscjson._tcp";
@@ -26,15 +27,25 @@ public class OscQueryServer
     private static event Action<Dictionary<string, object?>>? ParameterUpdate;
     private static readonly Dictionary<string, object?> ParameterList = new();
 
-    public OscQueryServer(string serviceName, string ipAddress,ushort oscPort, Action<Dictionary<string, object?>>? parameterUpdate = null)
+    public OscQueryServer(string serviceName, string ipAddress, ushort oscPort,
+        Action<Dictionary<string, object?>>? parameterUpdate = null)
     {
         _serviceName = serviceName;
-        ParameterUpdate = parameterUpdate;
         _ipAddress = ipAddress;
         _oscPort = oscPort;
+        _httpPort = FindAvailableTcpPort();
+        ParameterUpdate = parameterUpdate;
         SetupJsonObjects();
         // ignore our own service
-        FoundServices.Add($"{_serviceName.ToLower()}.{OscHttpServiceName}.local:{HttpPort}");
+        FoundServices.Add($"{_serviceName.ToLower()}.{OscHttpServiceName}.local:{_httpPort}");
+
+        // HTTP Server
+        _httpListener = new HttpListener();
+        var prefix = $"http://{_ipAddress}:{_httpPort}/";
+        _httpListener.Prefixes.Add(prefix);
+        _httpListener.Start();
+        _httpListener.BeginGetContext(OnHttpRequest, null);
+        Debug.WriteLine($"OSCQueryHttpServer: Listening at {prefix}");
 
         // mDNS
         _multicastService = new MulticastService
@@ -46,23 +57,15 @@ public class OscQueryServer
         ListenForServices();
         _multicastService.Start();
         AdvertiseOscQueryServer();
-
-        // HTTP Server
-        _httpListener = new HttpListener();
-        var prefix = $"http://{_ipAddress}:{HttpPort}/";
-        _httpListener.Prefixes.Add(prefix);
-        _httpListener.Start();
-        _httpListener.BeginGetContext(OnHttpRequest, null);
-        Debug.WriteLine($"OSCQueryHttpServer: Listening at {prefix}");
     }
 
     private void AdvertiseOscQueryServer()
     {
         var httpProfile =
-            new ServiceProfile(_serviceName, OscHttpServiceName, HttpPort, 
+            new ServiceProfile(_serviceName, OscHttpServiceName, _httpPort,
                 new[] { IPAddress.Parse(_ipAddress) });
         var oscProfile =
-            new ServiceProfile(_serviceName, OscUdpServiceName, _oscPort, 
+            new ServiceProfile(_serviceName, OscUdpServiceName, _oscPort,
                 new[] { IPAddress.Parse(_ipAddress) });
         _serviceDiscovery.Advertise(httpProfile);
         _serviceDiscovery.Advertise(oscProfile);
@@ -113,7 +116,7 @@ public class OscQueryServer
                 if (instanceName.StartsWith("VRChat-Client-") && ipAddress != null)
                 {
                     _lastVrcHttpServer = new IPEndPoint(ipAddress, record.Port);
-                    FetchJsonFromVrc(ipAddress, record.Port);
+                    FetchJsonFromVrc(ipAddress, record.Port).GetAwaiter();
                 }
             }
         }
@@ -123,17 +126,21 @@ public class OscQueryServer
         }
     }
 
-    private static async void FetchJsonFromVrc(IPAddress ipAddress, int port)
+    private static bool _fetchInProgress;
+
+    private static async Task FetchJsonFromVrc(IPAddress ipAddress, int port)
     {
+        if (_fetchInProgress) return;
+        _fetchInProgress = true;
         var url = $"http://{ipAddress}:{port}/";
         Debug.WriteLine($"OSCQueryHttpClient: Fetching new parameters from {url}");
+        var response = string.Empty;
         var client = new HttpClient();
         try
         {
-            var response = await client.GetStringAsync(url);
+            response = await client.GetStringAsync(url);
             var rootNode = JsonSerializer.Deserialize<OscQueryModels.RootNode>(response);
-            // JsonConvert.DeserializeObject<OscQueryModels.RootNode>(response);
-            if (rootNode?.CONTENTS?.avatar.CONTENTS.parameters.CONTENTS == null)
+            if (rootNode?.CONTENTS?.avatar?.CONTENTS?.parameters?.CONTENTS == null)
             {
                 Console.WriteLine("OSCQueryHttpClient: Error no parameters found");
                 return;
@@ -156,7 +163,11 @@ public class OscQueryServer
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"OSCQueryHttp: Error {ex.Message}");
+            Console.WriteLine($"OSCQueryHttp: Error {ex.Message}\n{response}");
+        }
+        finally
+        {
+            _fetchInProgress = false;
         }
     }
 
@@ -183,7 +194,7 @@ public class OscQueryServer
         var path = request.Url?.AbsolutePath;
         if (path == null || request.RawUrl == null)
             return;
-        
+
         if (!request.RawUrl.Contains("HOST_INFO") && path != "/")
         {
             response.StatusCode = 404;
@@ -191,7 +202,7 @@ public class OscQueryServer
             response.Close();
             return;
         }
-        
+
         Debug.WriteLine($"OSCQueryHttp request: {path}");
 
         var json = JsonSerializer.Serialize(request.RawUrl.Contains("HOST_INFO") ? _hostInfo : _queryData);
@@ -204,12 +215,22 @@ public class OscQueryServer
         response.OutputStream.Close();
     }
 
-    public static void GetParameters()
+    public static async Task GetParameters()
     {
         if (_lastVrcHttpServer == null)
             return;
 
-        FetchJsonFromVrc(_lastVrcHttpServer.Address, _lastVrcHttpServer.Port);
+        await FetchJsonFromVrc(_lastVrcHttpServer.Address, _lastVrcHttpServer.Port);
+    }
+
+    private ushort FindAvailableTcpPort()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        socket.Bind(new IPEndPoint(IPAddress.Parse(_ipAddress), port: 0));
+        ushort port = 0;
+        if (socket.LocalEndPoint != null)
+            port = (ushort)((IPEndPoint)socket.LocalEndPoint).Port;
+        return port;
     }
 
     private void SetupJsonObjects()

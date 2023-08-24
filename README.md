@@ -2,7 +2,7 @@
 
 ## Info
 
-A more human readable but potentially less functional OscQuery library.
+A more human readable but potentially less functional OscQuery library for VRChat.
 
 ## Functionality
 

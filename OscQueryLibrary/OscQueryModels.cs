@@ -12,7 +12,7 @@ public class OscQueryModels
         public Node input { get; set; }
         public TrackingRootNode tracking { get; set; }
         public Node chatbox { get; set; }
-        public AvatarRootNode avatar { get; set; }
+        public AvatarRootNode? avatar { get; set; }
     }
 
     public class TrackingRootNode
@@ -39,7 +39,7 @@ public class OscQueryModels
     public class AvatarNode
     {
         public Node change { get; set; }
-        public Node parameters { get; set; }
+        public Node? parameters { get; set; }
     }
 
     // technically every class in the JSON is this "Node" class but that's gross

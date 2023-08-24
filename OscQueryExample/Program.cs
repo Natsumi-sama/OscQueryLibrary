@@ -74,7 +74,7 @@ public static class Program
             {
                 var avatarId = received.Arguments.ElementAtOrDefault(0);
                 Console.WriteLine($"Avatar changed: {avatarId}");
-                OscQueryServer.GetParameters();
+                await OscQueryServer.GetParameters();
                 break;
             }
             case "/avatar/parameters/MuteSelf":
