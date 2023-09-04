@@ -25,6 +25,7 @@ new OscQueryServer(
 private static void CallbackMethod(Dictionary<string, object?> parameterList)
 {
     // ran when client connects or optionally when user changes avatar
+    // the parameter values are in their initial state so they are mostly useless
     foreach (var parameter in parameterList)
     {
         Console.WriteLine(parameter.Key);
