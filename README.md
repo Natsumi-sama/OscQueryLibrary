@@ -11,6 +11,8 @@ Auto negotiate with VRC to connect to your OSC server without the need of a OSC 
 Receive available parameter list immediately without needing to read avatar JSON file or switch avatar.
 <br>
 Quest/second PC support soon...
+<br>
+Known issue: restarting the program will cause VRC to send data more than once (pls fix)
 
 ## Setup
 
