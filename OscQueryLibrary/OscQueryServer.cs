@@ -27,12 +27,12 @@ public class OscQueryServer
     private static event Action<Dictionary<string, object?>>? ParameterUpdate;
     private static readonly Dictionary<string, object?> ParameterList = new();
 
-    public OscQueryServer(string serviceName, string ipAddress, ushort oscPort,
+    public OscQueryServer(string serviceName, string ipAddress,
         Action<Dictionary<string, object?>>? parameterUpdate = null)
     {
         _serviceName = serviceName;
         _ipAddress = ipAddress;
-        _oscPort = oscPort;
+        _oscPort = FindAvailableUdpPort();
         _httpPort = FindAvailableTcpPort();
         ParameterUpdate = parameterUpdate;
         SetupJsonObjects();
@@ -215,6 +215,7 @@ public class OscQueryServer
         response.OutputStream.Close();
     }
 
+    // Call this method from your avatar change event
     public static async Task GetParameters()
     {
         if (_lastVrcHttpServer == null)
@@ -226,6 +227,16 @@ public class OscQueryServer
     private ushort FindAvailableTcpPort()
     {
         using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        socket.Bind(new IPEndPoint(IPAddress.Parse(_ipAddress), port: 0));
+        ushort port = 0;
+        if (socket.LocalEndPoint != null)
+            port = (ushort)((IPEndPoint)socket.LocalEndPoint).Port;
+        return port;
+    }
+    
+    private ushort FindAvailableUdpPort()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         socket.Bind(new IPEndPoint(IPAddress.Parse(_ipAddress), port: 0));
         ushort port = 0;
         if (socket.LocalEndPoint != null)

@@ -35,7 +35,6 @@ public static class Program
         var oscQueryServer = new OscQueryServer(
             "HelloWorld", // service name
             IpAddress, // ip address for udp and http server
-            OscReceivePort, // osc server port
             UpdateAvailableParameters // parameter list callback on vrc discovery
         );
 
