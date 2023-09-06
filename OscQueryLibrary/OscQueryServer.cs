@@ -12,7 +12,7 @@ public class OscQueryServer
 {
     private readonly ushort _httpPort; // TODO: remove when switching httpServer library for proper random port support
     private readonly string _ipAddress;
-    private readonly ushort _oscPort;
+    public static ushort OscPort;
     private const string OscHttpServiceName = "_oscjson._tcp";
     private const string OscUdpServiceName = "_osc._udp";
     private readonly HttpListener _httpListener;
@@ -32,7 +32,7 @@ public class OscQueryServer
     {
         _serviceName = serviceName;
         _ipAddress = ipAddress;
-        _oscPort = FindAvailableUdpPort();
+        OscPort = FindAvailableUdpPort();
         _httpPort = FindAvailableTcpPort();
         ParameterUpdate = parameterUpdate;
         SetupJsonObjects();
@@ -65,7 +65,7 @@ public class OscQueryServer
             new ServiceProfile(_serviceName, OscHttpServiceName, _httpPort,
                 new[] { IPAddress.Parse(_ipAddress) });
         var oscProfile =
-            new ServiceProfile(_serviceName, OscUdpServiceName, _oscPort,
+            new ServiceProfile(_serviceName, OscUdpServiceName, OscPort,
                 new[] { IPAddress.Parse(_ipAddress) });
         _serviceDiscovery.Advertise(httpProfile);
         _serviceDiscovery.Advertise(oscProfile);
@@ -264,7 +264,7 @@ public class OscQueryServer
         _hostInfo = new
         {
             NAME = _serviceName,
-            OSC_PORT = (int)_oscPort,
+            OSC_PORT = (int)OscPort,
             OSC_IP = _ipAddress,
             OSC_TRANSPORT = "UDP",
             EXTENSIONS = new

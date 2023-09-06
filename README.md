@@ -20,6 +20,11 @@ new OscQueryServer(
     "127.0.0.1", // ip address for udp and http server
     CallbackMethod // optional parameter list callback on vrc discovery
 );
+// after creating query server start OSC server with generated random port
+var oscConnection = new OscDuplex(
+    new IPEndPoint(IPAddress.Loopback, OscQueryServer.OscPort),
+    new IPEndPoint(IPAddress.Loopback, 9000)
+);
 
 private static void CallbackMethod(Dictionary<string, object?> parameterList)
 {

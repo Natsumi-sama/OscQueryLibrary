@@ -10,12 +10,8 @@ public static class Program
 {
     private const string IpAddress = "127.0.0.1";
     private const int OscSendPort = 9000;
-    private const ushort OscReceivePort = 8063;
 
-    private static readonly OscDuplex GameConnection = new(
-        new IPEndPoint(IPAddress.Parse(IpAddress), OscReceivePort),
-        new IPEndPoint(IPAddress.Parse(IpAddress), OscSendPort)
-    );
+    private static OscDuplex _gameConnection = null!;
 
     private static readonly HashSet<string> AvailableParameters = new();
 
@@ -30,13 +26,17 @@ public static class Program
 
     public static void Main(string[] args)
     {
-        Task.Run(ReceiverLoopAsync);
-
         var oscQueryServer = new OscQueryServer(
             "HelloWorld", // service name
             IpAddress, // ip address for udp and http server
             UpdateAvailableParameters // parameter list callback on vrc discovery
         );
+        
+        _gameConnection = new(
+            new IPEndPoint(IPAddress.Parse(IpAddress), OscQueryServer.OscPort),
+            new IPEndPoint(IPAddress.Parse(IpAddress), OscSendPort)
+        );
+        Task.Run(ReceiverLoopAsync);
 
         while (true)
         {
@@ -64,7 +64,7 @@ public static class Program
 
     private static async Task ReceiveLogic()
     {
-        var received = await GameConnection.ReceiveMessageAsync();
+        var received = await _gameConnection.ReceiveMessageAsync();
         var addr = received.Address;
 
         switch (addr)
@@ -90,7 +90,7 @@ public static class Program
     private static async Task SendGameMessage(string address, params object?[]? arguments)
     {
         arguments ??= Array.Empty<object>();
-        await GameConnection.SendAsync(new OscMessage(address, arguments));
+        await _gameConnection.SendAsync(new OscMessage(address, arguments));
     }
 
     private static void UpdateAvailableParameters(Dictionary<string, object?> parameterList)
