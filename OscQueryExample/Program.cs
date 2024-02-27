@@ -3,15 +3,16 @@ using System.Net;
 using System.Text.Json;
 using LucHeart.CoreOSC;
 using OscQueryLibrary;
+using Serilog;
+using Serilog.Events;
 
 namespace OscQueryExample;
 
 public static class Program
 {
     private const string IpAddress = "127.0.0.1";
-    private const int OscSendPort = 9000;
-
-    private static OscDuplex _gameConnection = null!;
+    private static bool _oscServerActive;
+    private static OscDuplex? _gameConnection = null;
 
     private static readonly HashSet<string> AvailableParameters = new();
 
@@ -26,18 +27,20 @@ public static class Program
 
     public static void Main(string[] args)
     {
+        Log.Logger = new LoggerConfiguration()
+            .Filter.ByExcluding(ev =>
+                ev.Exception is InvalidDataException a && a.Message.StartsWith("Invocation provides"))
+            .WriteTo.Console(LogEventLevel.Information,
+                "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+        
         var oscQueryServer = new OscQueryServer(
             "HelloWorld", // service name
             IpAddress, // ip address for udp and http server
+            FoundVrcClient, // optional callback on vrc discovery
             UpdateAvailableParameters // parameter list callback on vrc discovery
         );
         
-        _gameConnection = new(
-            new IPEndPoint(IPAddress.Parse(IpAddress), OscQueryServer.OscPort),
-            new IPEndPoint(IPAddress.Parse(IpAddress), OscSendPort)
-        );
-        Task.Run(ReceiverLoopAsync);
-
         while (true)
         {
             Thread.Sleep(10000);
@@ -46,9 +49,25 @@ public static class Program
         // ReSharper disable once FunctionNeverReturns
     }
 
+    private static void FoundVrcClient()
+    {
+        // stop tasks
+        _oscServerActive = false;
+        Task.Delay(1000).Wait(); // wait for tasks to stop
+        _gameConnection?.Dispose();
+        _gameConnection = null;
+        
+        _gameConnection = new OscDuplex(
+            new IPEndPoint(IPAddress.Parse(IpAddress), OscQueryServer.OscReceivePort),
+            new IPEndPoint(IPAddress.Parse(IpAddress), OscQueryServer.OscSendPort)
+        );
+        _oscServerActive = true;
+        Task.Run(ReceiverLoopAsync);
+    }
+
     private static async Task ReceiverLoopAsync()
     {
-        while (true)
+        while (_oscServerActive)
         {
             try
             {
@@ -64,7 +83,17 @@ public static class Program
 
     private static async Task ReceiveLogic()
     {
-        var received = await _gameConnection.ReceiveMessageAsync();
+        if (_gameConnection == null) return;
+        OscMessage received;
+        try
+        {
+            received = await _gameConnection.ReceiveMessageAsync();
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e, "Error receiving message");
+            return;
+        }
         var addr = received.Address;
 
         switch (addr)
@@ -89,6 +118,7 @@ public static class Program
 
     private static async Task SendGameMessage(string address, params object?[]? arguments)
     {
+        if (_gameConnection == null) return;
         arguments ??= Array.Empty<object>();
         await _gameConnection.SendAsync(new OscMessage(address, arguments));
     }
