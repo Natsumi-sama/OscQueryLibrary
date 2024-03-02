@@ -5,12 +5,12 @@ using LucHeart.CoreOSC;
 using OscQueryLibrary;
 using Serilog;
 using Serilog.Events;
+using Swan.Logging;
 
 namespace OscQueryExample;
 
 public static class Program
 {
-    private const string IpAddress = "127.0.0.1";
     private static bool _oscServerActive;
     private static OscDuplex? _gameConnection = null;
 
@@ -24,6 +24,8 @@ public static class Program
     };
 
     private static bool _isMuted;
+    
+    private static readonly Serilog.ILogger Logger = Log.ForContext(typeof(Program));
 
     public static void Main(string[] args)
     {
@@ -33,10 +35,42 @@ public static class Program
             .WriteTo.Console(LogEventLevel.Information,
                 "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
+
+        // ReSharper disable once RedundantAssignment
+        var isDebug = false;
+#if DEBUG
+        isDebug = true;
+#endif
+        if ((args.Length > 0 && args[0] == "--debug") || isDebug)
+        {
+            Log.Information("Debug logging enabled");
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .Filter.ByExcluding(ev =>
+                    ev.Exception is InvalidDataException a && a.Message.StartsWith("Invocation provides"))
+                .WriteTo.Console(LogEventLevel.Debug,
+                    "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+                .CreateLogger();
+        }
         
-        var oscQueryServer = new OscQueryServer(
+        // listen for VRC on every network interface
+        var host = Dns.GetHostEntry(Dns.GetHostName());
+        foreach (var ip in host.AddressList)
+        {
+            if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                continue;
+            
+            var ipAddress = ip.ToString();
+            _ = new OscQueryServer(
+                "HelloWorld", // service name
+                ipAddress, // ip address for udp and http server
+                FoundVrcClient, // optional callback on vrc discovery
+                UpdateAvailableParameters // parameter list callback on vrc discovery
+            );
+        }
+        _ = new OscQueryServer(
             "HelloWorld", // service name
-            IpAddress, // ip address for udp and http server
+            "127.0.0.1", // ip address for udp and http server
             FoundVrcClient, // optional callback on vrc discovery
             UpdateAvailableParameters // parameter list callback on vrc discovery
         );
@@ -58,8 +92,8 @@ public static class Program
         _gameConnection = null;
         
         _gameConnection = new OscDuplex(
-            new IPEndPoint(IPAddress.Parse(IpAddress), OscQueryServer.OscReceivePort),
-            new IPEndPoint(IPAddress.Parse(IpAddress), OscQueryServer.OscSendPort)
+            new IPEndPoint(IPAddress.Parse(OscQueryServer.OscIpAddress), OscQueryServer.OscReceivePort),
+            new IPEndPoint(IPAddress.Parse(OscQueryServer.OscIpAddress), OscQueryServer.OscSendPort)
         );
         _oscServerActive = true;
         Task.Run(ReceiverLoopAsync);
