@@ -8,7 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CoreOSC-UTF8-ASYNC\CoreOSC\CoreOSC.csproj" />
+      <PackageReference Include="LucHeart.CoreOSC" Version="1.2.1" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\OscQueryLibrary\OscQueryLibrary.csproj" />
     </ItemGroup>
 
