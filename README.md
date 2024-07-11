@@ -1,7 +1,7 @@
 # OscQuery Example Library
 
-[![NuGet OscQueryLibrary](https://img.shields.io/nuget/v/OscQueryLibrary?style=for-the-badge&color=e14a6d&label=NuGet%20OpenShock.SDK.CSharp)](https://www.nuget.org/packages/OscQueryLibrary/)
-[![NuGet OscQueryLibrary Downloads](https://img.shields.io/nuget/dt/OscQueryLibrary?style=for-the-badge&color=e14a6d&label=NuGet%20Downloads)](https://www.nuget.org/packages/OscQueryLibrary/)
+[![NuGet OscQueryLibrary](https://img.shields.io/nuget/v/OscQueryLibrary?style=for-the-badge&label=NuGet%20OscQueryLibrary)](https://www.nuget.org/packages/OscQueryLibrary/)
+[![NuGet OscQueryLibrary Downloads](https://img.shields.io/nuget/dt/OscQueryLibrary?style=for-the-badge&label=NuGet%20Downloads)](https://www.nuget.org/packages/OscQueryLibrary/)
 
 ## Info
 
