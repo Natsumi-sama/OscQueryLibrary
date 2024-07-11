@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using LucHeart.CoreOSC;
 using OscQueryLibrary;
+using OscQueryLibrary.Utils;
 using Serilog;
 using Serilog.Events;
 using Swan.Logging;
@@ -11,7 +12,6 @@ namespace OscQueryExample;
 
 public static class Program
 {
-    private static bool _oscServerActive;
     private static OscDuplex? _gameConnection = null;
 
     private static readonly HashSet<string> AvailableParameters = new();
@@ -24,84 +24,85 @@ public static class Program
     };
 
     private static bool _isMuted;
-    
-    private static readonly Serilog.ILogger Logger = Log.ForContext(typeof(Program));
 
-    public static void Main(string[] args)
+    private static Serilog.ILogger _logger = null!;
+
+    public static async Task Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
-            .Filter.ByExcluding(ev =>
-                ev.Exception is InvalidDataException a && a.Message.StartsWith("Invocation provides"))
-            .WriteTo.Console(LogEventLevel.Information,
+            .MinimumLevel.Debug()
+            .WriteTo.Console(LogEventLevel.Verbose,
                 "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
+        
+        _logger = Log.ForContext(typeof(Program));
 
-        // ReSharper disable once RedundantAssignment
-        var isDebug = false;
-#if DEBUG
-        isDebug = true;
-#endif
-        if ((args.Length > 0 && args[0] == "--debug") || isDebug)
-        {
-            Log.Information("Debug logging enabled");
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .Filter.ByExcluding(ev =>
-                    ev.Exception is InvalidDataException a && a.Message.StartsWith("Invocation provides"))
-                .WriteTo.Console(LogEventLevel.Debug,
-                    "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
-                .CreateLogger();
-        }
-        
-        // listen for VRC on every network interface
-        var host = Dns.GetHostEntry(Dns.GetHostName());
-        foreach (var ip in host.AddressList)
-        {
-            if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
-                continue;
-            
-            var ipAddress = ip.ToString();
-            _ = new OscQueryServer(
-                "HelloWorld", // service name
-                ipAddress, // ip address for udp and http server
-                FoundVrcClient, // optional callback on vrc discovery
-                UpdateAvailableParameters // parameter list callback on vrc discovery
-            );
-        }
-        _ = new OscQueryServer(
+        var oscQueryServers = new List<OscQueryServer>();
+
+        //listen for VRC on every network interface
+        // var host = await Dns.GetHostEntryAsync(Dns.GetHostName());
+        // foreach (var ip in host.AddressList)
+        // {
+        //     if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        //         continue;
+        //
+        //     var server = new OscQueryServer(
+        //         "HelloWorld", // service name
+        //         ip
+        //     );
+        //
+        //     server.FoundVrcClient += FoundVrcClient; // event on vrc discovery
+        //     server.ParameterUpdate += UpdateAvailableParameters; // event on parameter list update
+        //
+        //     oscQueryServers.Add(server);
+        //
+        //     server.Start();
+        // }
+
+        var localHostServer = new OscQueryServer(
             "HelloWorld", // service name
-            "127.0.0.1", // ip address for udp and http server
-            FoundVrcClient, // optional callback on vrc discovery
-            UpdateAvailableParameters // parameter list callback on vrc discovery
+            IPAddress.Loopback // ip address for udp and http server
         );
+        localHostServer.FoundVrcClient += FoundVrcClient; // event on vrc discovery
+        localHostServer.ParameterUpdate += UpdateAvailableParameters; // event on parameter list update
         
+        oscQueryServers.Add(localHostServer);
+
+        localHostServer.Start();
+
         while (true)
         {
-            Thread.Sleep(10000);
-            // ToggleMute();
+            Console.ReadLine();
+            await ToggleMute();
         }
-        // ReSharper disable once FunctionNeverReturns
     }
 
-    private static void FoundVrcClient()
+    private static CancellationTokenSource _loopCancellationToken = new CancellationTokenSource();
+    private static OscQueryServer? _currentOscQueryServer = null;
+
+    private static Task FoundVrcClient(OscQueryServer oscQueryServer, IPEndPoint ipEndPoint)
     {
         // stop tasks
-        _oscServerActive = false;
-        Task.Delay(1000).Wait(); // wait for tasks to stop
+        _loopCancellationToken.Cancel();
+        _loopCancellationToken = new CancellationTokenSource();
         _gameConnection?.Dispose();
         _gameConnection = null;
+
+        _logger.Information("Found VRC client at {EndPoint}", ipEndPoint);
+        _logger.Information("Starting listening for VRC client at {Port}", oscQueryServer.OscReceivePort);
         
         _gameConnection = new OscDuplex(
-            new IPEndPoint(IPAddress.Parse(OscQueryServer.OscIpAddress), OscQueryServer.OscReceivePort),
-            new IPEndPoint(IPAddress.Parse(OscQueryServer.OscIpAddress), OscQueryServer.OscSendPort)
-        );
-        _oscServerActive = true;
-        Task.Run(ReceiverLoopAsync);
+            new IPEndPoint(ipEndPoint.Address, oscQueryServer.OscReceivePort),
+            ipEndPoint);
+        _currentOscQueryServer = oscQueryServer;
+        ErrorHandledTask.Run(ReceiverLoopAsync);
+        return Task.CompletedTask;
     }
 
     private static async Task ReceiverLoopAsync()
     {
-        while (_oscServerActive)
+        var currentCancellationToken = _loopCancellationToken.Token;
+        while (!currentCancellationToken.IsCancellationRequested)
         {
             try
             {
@@ -109,7 +110,7 @@ public static class Program
             }
             catch (Exception e)
             {
-                Debug.WriteLine(e, "Error in receiver loop");
+                _logger.Error(e, "Error in receiver loop");
             }
         }
         // ReSharper disable once FunctionNeverReturns
@@ -128,15 +129,16 @@ public static class Program
             Debug.WriteLine(e, "Error receiving message");
             return;
         }
-        var addr = received.Address;
 
+        var addr = received.Address;
+        
         switch (addr)
         {
             case "/avatar/change":
             {
                 var avatarId = received.Arguments.ElementAtOrDefault(0);
                 Console.WriteLine($"Avatar changed: {avatarId}");
-                await OscQueryServer.GetParameters();
+                await _currentOscQueryServer!.GetParameters();
                 break;
             }
             case "/avatar/parameters/MuteSelf":
@@ -157,7 +159,7 @@ public static class Program
         await _gameConnection.SendAsync(new OscMessage(address, arguments));
     }
 
-    private static void UpdateAvailableParameters(Dictionary<string, object?> parameterList)
+    private static Task UpdateAvailableParameters(Dictionary<string, object?> parameterList, string s)
     {
         AvailableParameters.Clear();
         foreach (var parameter in parameterList)
@@ -165,7 +167,7 @@ public static class Program
             var parameterName = parameter.Key.Replace("/avatar/parameters/", "");
             if (ParameterList.Contains(parameterName))
                 AvailableParameters.Add(parameterName);
-            
+
             if (parameterName == "MuteSelf" && parameter.Value != null)
             {
                 _isMuted = ((JsonElement)parameter.Value).GetBoolean();
@@ -174,6 +176,7 @@ public static class Program
         }
 
         Console.WriteLine($"Found {AvailableParameters.Count} parameters");
+        return Task.CompletedTask;
     }
 
     private static async Task ToggleMute()
@@ -182,7 +185,7 @@ public static class Program
             Debug.WriteLine("Unmuting...");
         else
             Debug.WriteLine("Muting...");
-        
+
         await SendGameMessage("/input/Voice", false);
         await Task.Delay(50);
         await SendGameMessage("/input/Voice", true);
