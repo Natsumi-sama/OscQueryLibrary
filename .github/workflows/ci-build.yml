@@ -1,0 +1,51 @@
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - master
+      - develop
+    types: [opened, reopened, synchronize]
+  workflow_call:
+  workflow_dispatch:
+
+name: ci-build
+
+env:
+  DOTNET_VERSION: 8.0.x
+  REGISTRY: ghcr.io
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --no-restore --verbosity normal
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Package
+          path: |
+            ./OscQueryLibrary/bin/Release/*.nupkg
+            ./OscQueryLibrary/bin/Release/*.snupkg
+            
+          retention-days: 7
+          if-no-files-found: error
