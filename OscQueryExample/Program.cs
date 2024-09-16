@@ -68,7 +68,7 @@ public static class Program
         
         oscQueryServers.Add(localHostServer);
 
-        localHostServer.Start();
+        localHostServer.Start(); // this is required to start the service, no events will fire without this.
 
         while (true)
         {
@@ -91,9 +91,7 @@ public static class Program
         _logger.Information("Found VRC client at {EndPoint}", ipEndPoint);
         _logger.Information("Starting listening for VRC client at {Port}", oscQueryServer.OscReceivePort);
         
-        _gameConnection = new OscDuplex(
-            new IPEndPoint(ipEndPoint.Address, oscQueryServer.OscReceivePort),
-            ipEndPoint);
+        _gameConnection = new OscDuplex(new IPEndPoint(ipEndPoint.Address, oscQueryServer.OscReceivePort), ipEndPoint);
         _currentOscQueryServer = oscQueryServer;
         ErrorHandledTask.Run(ReceiverLoopAsync);
         return Task.CompletedTask;

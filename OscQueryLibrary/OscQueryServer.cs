@@ -63,8 +63,8 @@ public class OscQueryServer : IDisposable
             .WithModule(new ActionModule("/", HttpVerbs.Get,
                 ctx => ctx.SendStringAsync(
                     ctx.Request.RawUrl.Contains("HOST_INFO")
-                        ? JsonSerializer.Serialize(_hostInfo)
-                        : JsonSerializer.Serialize(_queryData), MediaTypeNames.Application.Json, Encoding.UTF8)));
+                        ? JsonSerializer.Serialize(_hostInfo, ModelsSourceGenerationContext.Default.HostInfo)
+                        : JsonSerializer.Serialize(_queryData, ModelsSourceGenerationContext.Default.RootNode), MediaTypeNames.Application.Json, Encoding.UTF8)));
 
         // mDNS
         _multicastService = new MulticastService
@@ -169,7 +169,7 @@ public class OscQueryServer : IDisposable
         try
         {
             response = await Client.GetStringAsync(url);
-            var rootNode = JsonSerializer.Deserialize<HostInfo>(response);
+            var rootNode = JsonSerializer.Deserialize(response, ModelsSourceGenerationContext.Default.HostInfo);
             if (rootNode?.OscPort == null)
             {
                 Logger.Error("OSCQueryHttpClient: Error no OSC port found");
@@ -204,7 +204,7 @@ public class OscQueryServer : IDisposable
         {
             response = await Client.GetStringAsync(url);
             
-            var rootNode = JsonSerializer.Deserialize<RootNode>(response);
+            var rootNode = JsonSerializer.Deserialize(response, ModelsSourceGenerationContext.Default.RootNode);
             if (rootNode?.Contents?.Avatar?.Contents?.Parameters?.Contents == null)
             {
                 Logger.Debug("OSCQueryHttpClient: Error no parameters found");
