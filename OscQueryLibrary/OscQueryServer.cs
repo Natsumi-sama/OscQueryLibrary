@@ -63,8 +63,8 @@ public class OscQueryServer : IDisposable
             .WithModule(new ActionModule("/", HttpVerbs.Get,
                 ctx => ctx.SendStringAsync(
                     ctx.Request.RawUrl.Contains("HOST_INFO")
-                        ? JsonSerializer.Serialize(_hostInfo, ModelsSourceGenerationContext.Default.HostInfo)
-                        : JsonSerializer.Serialize(_queryData, ModelsSourceGenerationContext.Default.RootNode), MediaTypeNames.Application.Json, Encoding.UTF8)));
+                        ? JsonSerializer.Serialize(_hostInfo, ModelsSourceGenerationContext.Default.HostInfo!)
+                        : JsonSerializer.Serialize(_queryData, ModelsSourceGenerationContext.Default.RootNode!), MediaTypeNames.Application.Json, Encoding.UTF8)));
 
         // mDNS
         _multicastService = new MulticastService
