@@ -25,6 +25,7 @@ var localHostServer = new OscQueryServer(
 );
 localHostServer.FoundVrcClient += FoundVrcClient; // event on vrc discovery
 localHostServer.ParameterUpdate += UpdateAvailableParameters; // event on parameter list update
+localHostServer.Start(); // this is required to start the service, no events will fire without this.
 
 // listen for VRC on every network interface (Quest only)
 var host = await Dns.GetHostEntryAsync(Dns.GetHostName());
@@ -40,7 +41,7 @@ foreach (var ip in host.AddressList)
 
     server.FoundVrcClient += FoundVrcClient; // event on vrc discovery
     server.ParameterUpdate += UpdateAvailableParameters; // event on parameter list update
-    server.Start();
+    server.Start(); // this is required to start the service, no events will fire without this.
 }
 
 private static Task FoundVrcClient(OscQueryServer oscQueryServer, IPEndPoint ipEndPoint)
