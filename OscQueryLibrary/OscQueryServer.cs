@@ -317,6 +317,7 @@ public class OscQueryServer : IDisposable
         if (_disposed) return;
         _disposed = true;
         
+        _serviceDiscovery.Unadvertise();
         GC.SuppressFinalize(this);
         _multicastService.Dispose();
         _serviceDiscovery.Dispose();

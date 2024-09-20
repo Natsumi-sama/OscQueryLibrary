@@ -69,12 +69,23 @@ public static class Program
         oscQueryServers.Add(localHostServer);
 
         localHostServer.Start(); // this is required to start the service, no events will fire without this.
-
+        
+        // call a class that properly disposes of the game connection and the oscqueryservice.
+        // disposing of the oscqueryservice is required to send a goodbye packet to VRChat.
+        AppDomain.CurrentDomain.ProcessExit += (s, e) => Cleanup();
         while (true)
         {
             Console.ReadLine();
             await ToggleMute();
+            Environment.Exit(0);
         }
+    }
+    
+    private static void Cleanup()
+    {
+        _logger.Information("Disposing");
+        _currentOscQueryServer?.Dispose();
+        _gameConnection?.Dispose();
     }
 
     private static CancellationTokenSource _loopCancellationToken = new CancellationTokenSource();
@@ -189,5 +200,7 @@ public static class Program
         await SendGameMessage("/input/Voice", true);
         await Task.Delay(50);
         await SendGameMessage("/input/Voice", false);
+        _currentOscQueryServer?.Dispose();
+
     }
 }
