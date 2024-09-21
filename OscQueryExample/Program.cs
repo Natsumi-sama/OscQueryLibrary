@@ -77,13 +77,11 @@ public static class Program
         {
             Console.ReadLine();
             await ToggleMute();
-            Environment.Exit(0);
         }
     }
     
     private static void Cleanup()
     {
-        _logger.Information("Disposing");
         _currentOscQueryServer?.Dispose();
         _gameConnection?.Dispose();
     }
@@ -200,7 +198,5 @@ public static class Program
         await SendGameMessage("/input/Voice", true);
         await Task.Delay(50);
         await SendGameMessage("/input/Voice", false);
-        _currentOscQueryServer?.Dispose();
-
     }
 }
