@@ -3,8 +3,8 @@
     <PropertyGroup>
         <AssemblyName>OscQueryLibrary</AssemblyName>
         <RootNamespace>OscQueryLibrary</RootNamespace>
-        <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
-        <LangVersion>12</LangVersion>
+        <TargetFrameworks>netstandard2.1;net8.0;net9.0</TargetFrameworks>
+        <LangVersion>13</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>true</ImplicitUsings>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -34,12 +34,12 @@
       <PackageReference Include="Serilog" Version="4.1.0" />
     </ItemGroup>
 
-    <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
-        <PackageReference Include="System.Text.Json" Version="8.0.5"/>
-    </ItemGroup>
-
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+      <PackageReference Include="System.Text.Json" Version="9.0.0" />
     </ItemGroup>
 
 </Project>
