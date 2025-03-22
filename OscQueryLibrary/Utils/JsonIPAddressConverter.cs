@@ -10,7 +10,7 @@ namespace OscQueryLibrary.Utils;
 /// <summary>
 /// JSON converter for <see cref="IPAddress"/> that uses the <see cref="IPAddress.TryFormat(Span{char}, out int)"/> method.
 /// </summary>
-public class JsonIPAddressConverter : JsonConverter<IPAddress>
+internal sealed class JsonIPAddressConverter : JsonConverter<IPAddress>
 {
     /// <inheritdoc/>
     public override IPAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

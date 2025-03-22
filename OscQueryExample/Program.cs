@@ -6,12 +6,12 @@ using OscQueryLibrary;
 using OscQueryLibrary.Utils;
 using Serilog;
 using Serilog.Events;
-using Swan.Logging;
 
 namespace OscQueryExample;
 
 public static class Program
 {
+    private static OscQueryServer _localHostServer;
     private static OscDuplex? _gameConnection = null;
 
     private static readonly HashSet<string> AvailableParameters = new();
@@ -36,39 +36,15 @@ public static class Program
             .CreateLogger();
         
         _logger = Log.ForContext(typeof(Program));
-
-        var oscQueryServers = new List<OscQueryServer>();
-
-        //listen for VRC on every network interface
-        // var host = await Dns.GetHostEntryAsync(Dns.GetHostName());
-        // foreach (var ip in host.AddressList)
-        // {
-        //     if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
-        //         continue;
-        //
-        //     var server = new OscQueryServer(
-        //         "HelloWorld", // service name
-        //         ip
-        //     );
-        //
-        //     server.FoundVrcClient += FoundVrcClient; // event on vrc discovery
-        //     server.ParameterUpdate += UpdateAvailableParameters; // event on parameter list update
-        //
-        //     oscQueryServers.Add(server);
-        //
-        //     server.Start();
-        // }
-
-        var localHostServer = new OscQueryServer(
-            "HelloWorld", // service name
-            IPAddress.Loopback // ip address for udp and http server
-        );
-        localHostServer.FoundVrcClient += FoundVrcClient; // event on vrc discovery
-        localHostServer.ParameterUpdate += UpdateAvailableParameters; // event on parameter list update
         
-        oscQueryServers.Add(localHostServer);
+        _localHostServer = new OscQueryServer(
+            "HelloWorld", // service name
+            IPAddress.Loopback // ip address for our local service
+        );
+        await _localHostServer.FoundVrcClient.SubscribeAsync(ipEndPoint => FoundVrcClient(ipEndPoint, _localHostServer)); // event on vrc discovery
+        await _localHostServer.ParameterUpdate.SubscribeAsync(UpdateAvailableParameters); // event on parameter list update
 
-        localHostServer.Start(); // this is required to start the service, no events will fire without this.
+        _localHostServer.Start(); // this is required to start the service, no events will fire without this.
         
         // call a class that properly disposes of the game connection and the oscqueryservice.
         // disposing of the oscqueryservice is required to send a goodbye packet to VRChat.
@@ -89,7 +65,7 @@ public static class Program
     private static CancellationTokenSource _loopCancellationToken = new CancellationTokenSource();
     private static OscQueryServer? _currentOscQueryServer = null;
 
-    private static Task FoundVrcClient(OscQueryServer oscQueryServer, IPEndPoint ipEndPoint)
+    private static Task FoundVrcClient(IPEndPoint endPoint, OscQueryServer oscQueryServer)
     {
         // stop tasks
         _loopCancellationToken.Cancel();
@@ -97,10 +73,10 @@ public static class Program
         _gameConnection?.Dispose();
         _gameConnection = null;
 
-        _logger.Information("Found VRC client at {EndPoint}", ipEndPoint);
+        _logger.Information("Found VRC client at {EndPoint}", endPoint);
         _logger.Information("Starting listening for VRC client at {Port}", oscQueryServer.OscReceivePort);
         
-        _gameConnection = new OscDuplex(new IPEndPoint(ipEndPoint.Address, oscQueryServer.OscReceivePort), ipEndPoint);
+        _gameConnection = new OscDuplex(new IPEndPoint(endPoint.Address, oscQueryServer.OscReceivePort), endPoint);
         _currentOscQueryServer = oscQueryServer;
         ErrorHandledTask.Run(ReceiverLoopAsync);
         return Task.CompletedTask;
@@ -145,7 +121,7 @@ public static class Program
             {
                 var avatarId = received.Arguments.ElementAtOrDefault(0);
                 Console.WriteLine($"Avatar changed: {avatarId}");
-                await _currentOscQueryServer!.GetParameters();
+                await _currentOscQueryServer!.RefreshParameters();
                 break;
             }
             case "/avatar/parameters/MuteSelf":
@@ -162,14 +138,14 @@ public static class Program
     private static async Task SendGameMessage(string address, params object?[]? arguments)
     {
         if (_gameConnection == null) return;
-        arguments ??= Array.Empty<object>();
+        arguments ??= [];
         await _gameConnection.SendAsync(new OscMessage(address, arguments));
     }
 
-    private static Task UpdateAvailableParameters(Dictionary<string, object?> parameterList, string s)
+    private static Task UpdateAvailableParameters(OscQueryServer.ParameterUpdateArgs parameterUpdateArgs)
     {
         AvailableParameters.Clear();
-        foreach (var parameter in parameterList)
+        foreach (var parameter in parameterUpdateArgs.Parameters)
         {
             var parameterName = parameter.Key.Replace("/avatar/parameters/", "");
             if (ParameterList.Contains(parameterName))
