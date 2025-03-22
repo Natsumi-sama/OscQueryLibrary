@@ -56,7 +56,7 @@ public class OscQueryServer : IDisposable
         Swan.Logging.Logger.NoLogging();
     }
     
-    public OscQueryServer(string serviceName, IPAddress serviceIpAddress, IPAddress? oscQueryServerBind = null)
+    public OscQueryServer(string serviceName, IPAddress serviceIpAddress, string oscQueryServerBind = "*")
     {
         _serviceName = serviceName;
         _serviceIpAddress = serviceIpAddress;
@@ -68,7 +68,7 @@ public class OscQueryServer : IDisposable
         _foundServices.Add($"{_serviceName.ToLower()}.{OscUdpServiceName}.local:{OscReceivePort}");
 
         // HTTP Server
-        var webServerUrl = $"http://{IPAddress.Loopback}:{_httpPort}/";
+        var webServerUrl = $"http://{oscQueryServerBind}:{_httpPort}/";
         _httpServer = new WebServer(o => o
                 .WithUrlPrefix(webServerUrl)
                 .WithMode(HttpListenerMode.EmbedIO))
