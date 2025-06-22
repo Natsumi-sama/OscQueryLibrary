@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
@@ -19,8 +19,9 @@ namespace OscQueryLibrary;
 public class OscQueryServer : IDisposable
 {
     private static readonly ILogger Logger = Log.ForContext(typeof(OscQueryServer));
+    private bool _disposed;
 
-    private static readonly HttpClient Client = new();
+    private static HttpClient Client;
     
     private readonly ushort _httpPort;
     private readonly IPAddress _serviceIpAddress;
@@ -58,6 +59,14 @@ public class OscQueryServer : IDisposable
     
     public OscQueryServer(string serviceName, IPAddress serviceIpAddress, string oscQueryServerBind = "*")
     {
+        Client = new HttpClient
+        {
+            DefaultRequestHeaders =
+            {
+                UserAgent = { new ProductInfoHeaderValue($"OscQuery-{serviceName}", "1.0") },
+                Pragma = { new NameValueHeaderValue("no-cache") }
+            }
+        };
         _serviceName = serviceName;
         _serviceIpAddress = serviceIpAddress;
         OscReceivePort = SocketUtils.FindAvailableUdpPort(serviceIpAddress);
@@ -249,8 +258,8 @@ public class OscQueryServer : IDisposable
             {
                 RecursiveParameterLookup(node.Value, parameterList);
             }
-
-            var avatarId = rootNode.Contents.Avatar.Contents.Change.Value.FirstOrDefault() ?? string.Empty;
+            
+            var avatarId = rootNode.Contents.Avatar.Contents.Change.Value?.FirstOrDefault() as string ?? string.Empty;
             
             return new ParameterUpdateArgs
             {
@@ -307,14 +316,26 @@ public class OscQueryServer : IDisposable
     {
         _queryData = new RootNode
         {
+            Description = "root node",
             FullPath = "/",
-            Access = 0,
+            Access = (int)AccessValues.NoValue,
             Contents = new RootNode.RootContents
             {
                 Avatar = new Node<AvatarContents>
                 {
                     FullPath = "/avatar",
-                    Access = 2
+                    Access = (int)AccessValues.NoValue,
+                    Contents = new AvatarContents
+                    {
+                        Change = new OscParameterNode
+                        {
+                            Description = "",
+                            FullPath = "/avatar/change",
+                            Access = (int)AccessValues.Write,
+                            Contents = {},
+                            Type = OscTypeLookup.GetValueOrDefault(typeof(string), string.Empty)
+                        }
+                    }
                 }
             }
         };
@@ -336,7 +357,19 @@ public class OscQueryServer : IDisposable
         };
     }
     
-    private bool _disposed;
+    private static readonly Dictionary<Type, string> OscTypeLookup = new()
+    {
+        {typeof(int), "i"},
+        {typeof(uint), "u"},
+        {typeof(long), "h"},
+        {typeof(float), "f"},
+        {typeof(double), "d"},
+        {typeof(string), "s"},
+        {typeof(char), "c"},
+        {typeof(Array), "[,]"},
+        {typeof(byte[]), "b"},
+        {typeof(bool), "T"},
+    };
     
     public void Dispose()
     {

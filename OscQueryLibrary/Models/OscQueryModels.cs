@@ -12,15 +12,18 @@ public sealed class RootNode : Node<RootNode.RootContents>
 
 public sealed class AvatarContents
 {
-    [JsonPropertyName("change")] public required OscParameterNodeEnd<string> Change { get; set; }
+    [JsonPropertyName("change")] public required OscParameterNode Change { get; set; }
 
-    [JsonPropertyName("parameters")] public Node<IDictionary<string, OscParameterNode>>? Parameters { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("parameters")]
+    public Node<IDictionary<string, OscParameterNode>>? Parameters { get; set; }
 }
 
 public sealed class OscParameterNode : Node<IDictionary<string, OscParameterNode>>
 {
     [JsonPropertyName("TYPE")] public string? Type { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyName("VALUE")] public IEnumerable<object>? Value { get; set; }
 }
 
