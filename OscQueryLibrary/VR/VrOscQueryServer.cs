@@ -7,7 +7,7 @@ using OscQueryLibrary.Models;
 using OscQueryLibrary.Utils;
 using Serilog;
 
-namespace OscQueryLibrary.VRChat;
+namespace OscQueryLibrary.VR;
 
 /// <summary>
 /// Makes VRChat or other compatible Clients send OSC to your app without an OSC router, and reads the current avatar's parameters.
@@ -15,7 +15,7 @@ namespace OscQueryLibrary.VRChat;
 /// </summary>
 public class VrOscQueryServer : IDisposable
 {
-    private static readonly ILogger Logger = Log.ForContext(typeof(VrOscQueryServer));
+    private static readonly ILogger Logger = Log.ForContext<VrOscQueryServer>();
 
     public const string VrcClientInstancePrefix = "VRChat-Client-";
 

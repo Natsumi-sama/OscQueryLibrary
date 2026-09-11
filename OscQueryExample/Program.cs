@@ -3,7 +3,7 @@ using System.Net;
 using System.Text.Json;
 using LucHeart.CoreOSC;
 using OscQueryLibrary.Utils;
-using OscQueryLibrary.VRChat;
+using OscQueryLibrary.VR;
 using Serilog;
 using Serilog.Events;
 

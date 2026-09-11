@@ -3,7 +3,7 @@ using System.Text.Json;
 using MeaMod.DNS.Multicast;
 using OscQueryLibrary.Models;
 using OscQueryLibrary.Tests.Fakes;
-using OscQueryLibrary.VRChat;
+using OscQueryLibrary.VR;
 
 namespace OscQueryLibrary.Tests;
 
