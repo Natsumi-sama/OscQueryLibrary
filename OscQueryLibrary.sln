@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OscQueryExample", "OscQuery
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OscQueryExplorer", "OscQueryExplorer\OscQueryExplorer.csproj", "{0EB93B2C-D25A-46BC-91A0-7CB3B6787932}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OscQueryLibrary.Tests", "OscQueryLibrary.Tests\OscQueryLibrary.Tests.csproj", "{8D56BD28-B4C1-4B69-B267-3A42492C044C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{0EB93B2C-D25A-46BC-91A0-7CB3B6787932}.Release|x64.Build.0 = Release|Any CPU
 		{0EB93B2C-D25A-46BC-91A0-7CB3B6787932}.Release|x86.ActiveCfg = Release|Any CPU
 		{0EB93B2C-D25A-46BC-91A0-7CB3B6787932}.Release|x86.Build.0 = Release|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Debug|x64.Build.0 = Debug|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Debug|x86.Build.0 = Debug|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Release|x64.ActiveCfg = Release|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Release|x64.Build.0 = Release|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Release|x86.ActiveCfg = Release|Any CPU
+		{8D56BD28-B4C1-4B69-B267-3A42492C044C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

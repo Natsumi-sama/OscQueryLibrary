@@ -91,11 +91,19 @@ public class VrOscQueryServer : IDisposable
     /// <param name="oscQueryServerBind">Address to bind the OSCQuery server to</param>
     /// <param name="instanceFilter">A filter to apply to instance names, by default filters for instances starting with the "VRChat-Client-" instance prefix</param>
     public VrOscQueryServer(string serviceName, IPAddress serviceIpAddress, string oscQueryServerBind = "*", Func<string, bool>? instanceFilter = null)
+        : this(serviceName, serviceIpAddress, oscQueryServerBind, instanceFilter,
+            new OscQueryHttpClient(OscQueryHttpClient.CreateHttpClient($"OscQuery-{serviceName}")),
+            // One mDNS socket for both advertising and discovery
+            OscQueryDiscovery.CreateMulticastService())
     {
-        _httpClient = new OscQueryHttpClient(OscQueryHttpClient.CreateHttpClient($"OscQuery-{serviceName}"));
+    }
 
-        // One mDNS socket for both advertising and discovery
-        _multicastService = OscQueryDiscovery.CreateMulticastService();
+    // Lets tests swap HTTP and mDNS for fakes
+    internal VrOscQueryServer(string serviceName, IPAddress serviceIpAddress, string oscQueryServerBind, Func<string, bool>? instanceFilter,
+        OscQueryHttpClient httpClient, MulticastService multicastService)
+    {
+        _httpClient = httpClient;
+        _multicastService = multicastService;
 
         Host = new OscQueryHost(new OscQueryHostOptions
         {

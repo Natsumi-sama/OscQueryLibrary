@@ -176,7 +176,15 @@ public sealed class OscQueryHost : IDisposable
         Logger.Debug("Disposing OscQueryHost");
 
         // Sends the mDNS goodbye, needs the multicast service to still be running
-        _serviceDiscovery.Unadvertise();
+        try
+        {
+            _serviceDiscovery.Unadvertise();
+        }
+        catch (Exception ex)
+        {
+            // e.g. a shared multicast service that was never started or already stopped
+            Logger.Warning(ex, "Failed to send mDNS goodbye");
+        }
         _serviceDiscovery.Dispose();
         _cts.Cancel();
         _httpServer.Dispose();
