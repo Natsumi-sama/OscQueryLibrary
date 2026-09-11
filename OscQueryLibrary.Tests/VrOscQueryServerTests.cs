@@ -30,12 +30,13 @@ public sealed class VrOscQueryServerTests : IDisposable
     }
 
     [Test]
-    public async Task Host_AsksForAvatarMessages()
+    public async Task Host_AsksForAllAvatarMessages()
     {
-        var change = _server.Host.Root.Find("/avatar/change");
+        var avatar = _server.Host.Root.Find("/avatar");
 
-        await Assert.That(change?.Access).IsEqualTo(AccessValues.Write);
-        await Assert.That(change?.Type).IsEqualTo("s");
+        // A writable leaf, children would limit VRChat to sending only those
+        await Assert.That(avatar?.Access).IsEqualTo(AccessValues.Write);
+        await Assert.That(avatar?.Contents).IsNull();
         await Assert.That(_server.Host.HostInfo.OscPort).IsEqualTo(_server.OscReceivePort);
     }
 

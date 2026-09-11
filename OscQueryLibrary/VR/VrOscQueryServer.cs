@@ -137,10 +137,10 @@ public class VrOscQueryServer : IDisposable
         Discovery.Start();
     }
 
-    // VRChat only sends what the tree asks for, /avatar gets us avatar changes and parameters
+    // VRChat only sends what the tree asks for. A writable /avatar leaf gets us everything below it, avatar changes
+    // and all parameters. Listing children instead, e.g. /avatar/change, makes it send only those.
     private static OscQueryNode CreateRootNode() => new()
     {
-        Description = "root node",
         FullPath = "/",
         Access = AccessValues.NoValue,
         Contents = new Dictionary<string, OscQueryNode>
@@ -148,17 +148,7 @@ public class VrOscQueryServer : IDisposable
             ["avatar"] = new()
             {
                 FullPath = "/avatar",
-                Access = AccessValues.NoValue,
-                Contents = new Dictionary<string, OscQueryNode>
-                {
-                    ["change"] = new()
-                    {
-                        Description = "",
-                        FullPath = "/avatar/change",
-                        Access = AccessValues.Write,
-                        Type = "s"
-                    }
-                }
+                Access = AccessValues.Write
             }
         }
     };
