@@ -1,9 +1,9 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using LucHeart.CoreOSC;
-using OscQueryLibrary;
 using OscQueryLibrary.Utils;
+using OscQueryLibrary.VRChat;
 using Serilog;
 using Serilog.Events;
 
@@ -11,7 +11,7 @@ namespace OscQueryExample;
 
 public static class Program
 {
-    private static OscQueryServer _localHostServer;
+    private static VrOscQueryServer _localHostServer = null!;
     private static OscDuplex? _gameConnection = null;
 
     private static readonly HashSet<string> AvailableParameters = new();
@@ -34,18 +34,29 @@ public static class Program
             .WriteTo.Console(LogEventLevel.Verbose,
                 "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
-        
+
         _logger = Log.ForContext(typeof(Program));
-        
-        _localHostServer = new OscQueryServer(
+
+        _localHostServer = new VrOscQueryServer(
             "HelloWorld", // service name
             IPAddress.Loopback // ip address for our local service
         );
-        await _localHostServer.FoundVrcClient.SubscribeAsync(ipEndPoint => FoundVrcClient(ipEndPoint, _localHostServer)); // event on vrc discovery
+        await _localHostServer.FoundVrClient.SubscribeAsync(ipEndPoint => FoundVrcClient(ipEndPoint, _localHostServer)); // event on vrc discovery
         await _localHostServer.ParameterUpdate.SubscribeAsync(UpdateAvailableParameters); // event on parameter list update
+        // optional, every client on the network. FoundVrcClient above only fires for the one currently in use.
+        await _localHostServer.VrClientDiscovered.SubscribeAsync(client =>
+        {
+            _logger.Information("VRC client on network: {Client}", client);
+            return Task.CompletedTask;
+        });
+        await _localHostServer.VrClientLost.SubscribeAsync(client =>
+        {
+            _logger.Information("VRC client gone: {Client}", client);
+            return Task.CompletedTask;
+        });
 
         _localHostServer.Start(); // this is required to start the service, no events will fire without this.
-        
+
         // call a class that properly disposes of the game connection and the oscqueryservice.
         // disposing of the oscqueryservice is required to send a goodbye packet to VRChat.
         AppDomain.CurrentDomain.ProcessExit += (s, e) => Cleanup();
@@ -55,7 +66,7 @@ public static class Program
             await ToggleMute();
         }
     }
-    
+
     private static void Cleanup()
     {
         _currentOscQueryServer?.Dispose();
@@ -63,9 +74,9 @@ public static class Program
     }
 
     private static CancellationTokenSource _loopCancellationToken = new CancellationTokenSource();
-    private static OscQueryServer? _currentOscQueryServer = null;
+    private static VrOscQueryServer? _currentOscQueryServer = null;
 
-    private static Task FoundVrcClient(IPEndPoint endPoint, OscQueryServer oscQueryServer)
+    private static Task FoundVrcClient(IPEndPoint endPoint, VrOscQueryServer oscQueryServer)
     {
         // stop tasks
         _loopCancellationToken.Cancel();
@@ -75,7 +86,7 @@ public static class Program
 
         _logger.Information("Found VRC client at {EndPoint}", endPoint);
         _logger.Information("Starting listening for VRC client at {Port}", oscQueryServer.OscReceivePort);
-        
+
         _gameConnection = new OscDuplex(new IPEndPoint(endPoint.Address, oscQueryServer.OscReceivePort), endPoint);
         _currentOscQueryServer = oscQueryServer;
         ErrorHandledTask.Run(ReceiverLoopAsync);
@@ -114,7 +125,7 @@ public static class Program
         }
 
         var addr = received.Address;
-        
+
         switch (addr)
         {
             case "/avatar/change":
@@ -142,7 +153,7 @@ public static class Program
         await _gameConnection.SendAsync(new OscMessage(address, arguments));
     }
 
-    private static Task UpdateAvailableParameters(OscQueryServer.ParameterUpdateArgs parameterUpdateArgs)
+    private static Task UpdateAvailableParameters(VrOscQueryServer.ParameterUpdateArgs parameterUpdateArgs)
     {
         AvailableParameters.Clear();
         foreach (var parameter in parameterUpdateArgs.Parameters)
